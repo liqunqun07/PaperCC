@@ -1,0 +1,7 @@
+{
+  "translate_target": "简体中文",
+  "ai": {
+    "base_url": "https://api.example.com/v1",
+    "model": "your-model-id"
+  }
+}

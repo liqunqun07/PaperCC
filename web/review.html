@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PaperCC · 论文审阅</title>
+<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/review.css">
+</head>
+<body>
+
+<header id="topbar">
+  <div class="brand">📝 <b>审阅</b><span class="sub">批注 / 修订稿</span></div>
+  <input id="folderInput" type="text" placeholder="文件夹路径 / 文件夹名 / 单个 .docx 路径，回车打开；或点「选择…」" spellcheck="false">
+  <button id="openBtn" class="btn primary">打开</button>
+  <button id="pickBtn" class="btn" title="用 macOS 选择框挑选文件夹（按住 ⌥ 点击则挑选单个 .docx）">📁 选择…</button>
+  <select id="historySel" title="最近"><option value="">最近…</option></select>
+  <span class="tb-gap"></span>
+  <div class="seg" id="viewSeg" title="修订显示方式">
+    <button data-v="markup" class="on">显示修订</button>
+    <button data-v="final">最终稿</button>
+    <button data-v="original">原稿</button>
+  </div>
+  <button id="zoomOut" class="btn ghost small" title="缩小">A−</button>
+  <button id="zoomIn" class="btn ghost small" title="放大">A+</button>
+  <label class="tb-check" title="选中文字后立即翻译，不再弹出按钮条"><input type="checkbox" id="instantChk"> 划词即译</label>
+  <button id="wordBtn" class="btn" disabled title="用 WPS 打开，保存后本页自动刷新">在 WPS 中打开</button>
+  <button id="themeBtn" class="btn ghost" title="界面深浅色">🌙</button>
+</header>
+
+<main id="rvLayout">
+  <aside id="filePanel">
+    <div class="paneBar tree-bar">
+      <button id="upBtn" class="btn small ghost" title="上一级文件夹">↑</button>
+      <span id="rootName" class="root-name" title=""></span>
+      <button id="treeRefresh" class="btn small ghost" title="立即刷新（每 5 秒自动同步）">⟳</button>
+    </div>
+    <div id="fileList"><div class="hint">在上方输入文件夹路径，<br>列出其中的 .docx（含批注版、修改稿）。</div></div>
+  </aside>
+
+  <section id="docPanel">
+    <div id="docBar" class="hidden">
+      <div id="docTitle"></div>
+      <div id="docStats" class="dim"></div>
+      <div class="db-acts">
+        <button id="acceptAllBtn" class="btn small" title="接受全文所有修订">全部接受</button>
+        <button id="rejectAllBtn" class="btn small" title="拒绝全文所有修订">全部拒绝</button>
+        <label class="tb-check" title="接受修订后，若该段已没有待审修订，自动删除锚定在该段的批注（连同回复）；比这些修订更晚的他人批注会保留。「全部接受」不触发"><input type="checkbox" id="autoCleanChk"> 通过后删批注</label>
+        <button id="undoBtn" class="btn small" title="撤销上一次面板写入（从自动备份恢复）">↶ 撤销</button>
+        <button id="redoBtn" class="btn small" title="重做（撤回刚才的撤销）">↷ 重做</button>
+        <button id="authorBtn" class="btn small ghost" title="批注与修订的署名"></button>
+      </div>
+    </div>
+    <div id="docScroll">
+      <div id="docEmpty" class="hint">← 选择一份 .docx 开始审阅<br>
+        <span class="dim">划词即可翻译 / 解释；点正文高亮处跳到对应批注；段落右侧「译」整段翻译</span></div>
+      <article id="docPage" class="hidden view-markup"></article>
+    </div>
+    <div id="splitL" class="rv-split" title="拖拽调宽 · 双击或点按钮折叠/展开"><button class="rv-tab" data-side="left" title="折叠 / 展开左栏">‹</button></div>
+    <div id="splitR" class="rv-split" title="拖拽调宽 · 双击或点按钮折叠/展开"><button class="rv-tab" data-side="right" title="折叠 / 展开右栏">›</button></div>
+    <button id="paraBtn" class="hidden" title="翻译本段">译</button>
+  </section>
+
+  <aside id="sidePanel">
+    <div class="tabs">
+      <button data-tab="comments" class="on">批注 <span id="cmCount"></span></button>
+      <button data-tab="results">结果 <span id="resCount"></span></button>
+    </div>
+    <div id="tab-comments" class="tabBody">
+      <div class="paneBar">
+        <label class="tb-check"><input type="checkbox" id="hideDone"> 隐藏已解决</label>
+        <button id="trAllBtn" class="btn small" disabled>全部翻译</button>
+        <button id="queueAllBtn" class="btn small" disabled title="把全部批注加入后台改写队列，边看边出结果">全部排队改写</button>
+        <button id="exportRespBtn" class="btn small" disabled title="汇总各批注的回复草稿，导出逐条回复信">导出回复稿</button>
+      </div>
+      <div class="paneBar auto-bar">
+        <label class="tb-check" title="Word/WPS 保存后，新增批注自动进入解读队列"><input type="checkbox" id="autoExplainChk"> 自动解释新批注</label>
+        <label class="tb-check" title="新增批注自动进入后台改写队列（会调用模型，注意用量）"><input type="checkbox" id="autoRewriteChk"> 自动改写新批注</label>
+      </div>
+      <div id="qbar" class="hidden"></div>
+      <div id="commentList"><div class="hint">打开文档后，批注列在这里。<span class="kbd-hint">J/K 切换批注 · E 解释 · W 改写 · Q 排队改写 · R 回复草稿</span></div></div>
+    </div>
+    <div id="tab-results" class="tabBody hidden">
+      <div class="paneBar"><span class="dim">划词 / 段落结果</span><button id="resClear" class="btn small ghost">清空</button></div>
+      <div id="resultList"><div class="hint">划词翻译、解释的结果会留存在这里。</div></div>
+    </div>
+  </aside>
+</main>
+
+<div id="selToolbar" class="hidden">
+  <button data-act="translate">翻译</button>
+  <button data-act="explain">解释</button>
+  <button data-act="term">术语</button>
+  <button data-act="summarize">概括</button>
+  <button data-act="copy">复制</button>
+  <span class="sep"></span>
+  <button data-act="comment" class="edit-act">＋批注</button>
+  <button data-act="rewrite" class="edit-act">改写</button>
+  <button data-act="delSel" class="edit-act" title="删除选中文字（以删除修订写入，可撤销）">删减</button>
+  <button data-act="acceptSel" class="rev-act">✓ 接受修订</button>
+  <button data-act="rejectSel" class="rev-act">✕ 拒绝修订</button>
+</div>
+
+<div id="revBar" class="hidden">
+  <span id="revInfo" class="dim"></span>
+  <button data-a="accept">✓ 接受</button>
+  <button data-a="reject">✕ 拒绝</button>
+</div>
+
+<div id="editPop" class="hidden">
+  <div class="sp-head"><span id="epTitle"></span><span class="sp-acts"><button id="epClose" title="取消 (Esc)">✕</button></span></div>
+  <div id="epSrc" class="sp-src"></div>
+  <textarea id="epText" rows="4" spellcheck="false"></textarea>
+  <div class="ep-foot"><span class="dim">⌘↩ 提交 · 写入原文件（自动备份，可撤销）</span><button id="epOk" class="btn primary small">确定</button></div>
+</div>
+
+<div id="selPop" class="hidden">
+  <div class="sp-head"><span id="spLabel">翻译</span>
+    <span class="sp-acts"><button id="spComment" class="edit-act" title="对选中文字新建批注">＋批注</button><button id="spRewrite" class="edit-act" title="改写选中文字（以修订痕迹写入）">改写</button><button id="spDel" class="edit-act" title="删除选中文字（以删除修订写入，可撤销）">删减</button><button id="spAccept" class="rev-act hidden" title="接受选中范围内的修订">✓ 接受修订</button><button id="spReject" class="rev-act hidden" title="拒绝选中范围内的修订">✕ 拒绝修订</button><button id="spCopy" title="复制结果">复制</button><button id="spClose" title="关闭 (Esc)">✕</button></span></div>
+  <div id="spSrc" class="sp-src"></div>
+  <div id="spBody" class="md"></div>
+</div>
+
+<div id="toast" class="hidden"></div>
+<script type="module" src="js/review.js"></script>
+</body>
+</html>
